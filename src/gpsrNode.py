@@ -13,6 +13,7 @@ class GPSRNode:
         self.navi_result_sub = rospy.Subscriber('/navigation/result',String,self.navigateResult)
         self.mani_result_sub = rospy.Subscriber('/object/grasp_res',Bool,self.manipulateResult)
         self.search_result_sub = rospy.Subscriber('/object/recog_res',Bool,self.searchResult)
+        self.change_pose_res_sub = rospy('/arm/changing_pose_res',Bool,self.changePoseResult)
         
         self.destination_pub = rospy.Publisher('/navigation/destination',String,queue_size=1)
         self.search_pub = rospy.Publisher('/object/recog_req',String,queue_size=10)
@@ -40,7 +41,7 @@ class GPSRNode:
         self.search_result = False
         self.manipulation_result = False
         #実行可能な動作リスト
-        self.com_list = ['Tell','Locate','Find','Bring','Take']
+        self.com_list = ['navi','mani','search','answer','bring','place','opetater']
        
     def Command(self,command_list):
         print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
@@ -51,189 +52,79 @@ class GPSRNode:
         self.location = command_list.location
         self.obj = command_list.obj
         self.answer = command_list.answer
+    
+    def navi(self):
+        if self.sub_state == 0:
+            self.destination_pub.publish(self.location)
+            self.sub_state = 1
+        elif self.sub_state == 1:
+            print 'navi'
+            if self.navigation_result == 'succsess':
+                self.navigation_result = 'null'
+                self.location = 'none'
+                self.action = 'none'
+                self.sub_state = 0
+
+    def mani(self):
+        if self.sub_state == 0:
+            self.manipulation_pub.publish(self.obj)
+            self.self.sub_state = 1
+        elif self.sub_state == 1:
+            print 'mani'
+            if self.manipulation_result == True:
+                self.manipulation_result = False
+                self.obj = 'none'
+                self.action = 'none'
+                self.sub_state = 0
+                self.changing_pose_req_pub.publish('carry')
+                rospy.sleep(3)
         
-    def locate(self):
+    def search(self):
         if self.sub_state == 0:
-            self.destination_pub.publish(self.location)
+            self.search_pub.publish(self.obj)
             self.sub_state = 1
         elif self.sub_state == 1:
-            print 'navi'
-            if self.navigation_result == 'succsess':
-                self.search_pub.publish(self.obj)
-                self.navigation_result = 'null'
-                self.sub_state = 2
-        elif self.sub_state == 2:
             print 'search'
             if self.search_result == True:
-                self.destination_pub.publish("operator")
                 self.search_result = False
-                self.sub_state = 3
-        elif self.sub_state == 3:
-            print 'return'
-            if self.navigation_result == 'succsess':
-                self.navigation_result = 'null'
-                self.sub_state = 0
-                self.action = 'none'
-                self.location = 'none'
                 self.obj = 'none'
-                self.answer = 'none'
-                self.task_count+=1
-
-    def tell(self):
-        if self.sub_state == 0:
-            self.destination_pub.publish(self.location)
-            self.sub_state = 1
-        elif self.sub_state == 1:
-            print 'navi'
-            if self.navigation_result == 'succsess':
-                rospy.sleep(2)
-                CMD ='/usr/bin/picospeaker {answer}'.format(answer=self.answer)
-                subprocess.call(CMD.strip().split(" "))
-                rospy.sleep(1)#sentenceの長さによって変更
-                self.navigation_result = 'null'
-                self.sub_state = 2
-        elif self.sub_state == 2:
-             self.destination_pub.publish("operator")
-             self.sub_state = 3
-        elif self.sub_state == 3:
-            print 'return'
-            if self.navigation_result == 'succsess':
-                self.navigation_result = 'null'
-                self.sub_state = 0
                 self.action = 'none'
-                self.location = 'none'
-                self.obj = 'none'
-                self.answer = 'none'
-                self.task_count+=1
-                
-    def find(self):
-        if self.sub_state == 0:
-            self.destination_pub.publish(self.location)
-            self.sub_state = 1
-        elif self.sub_state == 1:
-            print 'navi'
-            if self.navigation_result == 'succsess':
-                self.search_pub.publish(self.obj)
-                self.navigation_result = 'null'
-                self.sub_state = 2
-        elif self.sub_state == 2:
-            print 'search'
-            if self.search_result == True:
-                self.destination_pub.publish("operator")
-                self.search_result = False
-                self.sub_state = 3
-        elif self.sub_state == 3:
-            print 'return'
-            if self.navigation_result == 'succsess':
-                self.navigation_result = 'null'
                 self.sub_state = 0
-                self.action = 'none'
-                self.location = 'none'
-                self.obj = 'none'
-                self.answer = 'none'
-                self.task_count+=1
-     
-    def bring(self):
-        if self.sub_state == 0:
-            self.destination_pub.publish(self.location)
-            self.sub_state = 1
-        elif self.sub_state == 1:
-            print 'navi'
-            if self.navigation_result == 'succsess':
-                self.manipulation_pub.publish(self.obj)
-                self.navigation_result = 'null'
-                self.sub_state =2
-        elif self.sub_state == 2:
-            print 'mani'
-            if self.manipulation_result == True:
-                print 'state:arm change'
-                self.changing_pose_req_pub.publish('carry')
-                rospy.sleep(3)#かかる時間によって変更
-                self.sub_state = 3
-                self.manipulation_result = False
-        elif self.sub_state == 3: 
-                self.destination_pub.publish("operator")
-                self.sub_state = 4
-        elif self.sub_state == 4:
-            print 'return'
-            if self.navigation_result == 'succsess':
-                self.navigation_result = 'null'
-                self.changing_pose_req_pub.publish('pass')#人にオブジェクトを渡すためにアームの角度を変える必要があれば。
-                rospy.sleep(3)#かかる時間によって変更
-                self.sub_state = 5
-        elif self.sub_state == 5:
-            CMD = '/usr/bin/picospeaker %s' % 'Here you are'
-            subprocess.call(CMD.strip().split(" "))
-            rospy.sleep(2)#時間の調整あり
-            self.sub_state = 6
-        elif self.sub_state == 6:
-            CMD = '/usr/bin/picospeaker %s' % 'You are welcome'
-            subprocess.call(CMD.strip().split(" "))
-            rospy.sleep(1.5)#時間の調整あり 
-            self.sub_state = 0
-            self.action = 'none'
-            self.location = 'none'
-            self.obj = 'none'
-            self.answer = 'none'
-            self.task_count+=1
-                
-    #基本bringと同じ処理。把持したものをオペレーター以外の場所に持って行くなら違う処理になるので、
-    #把持した後にnaviして、naviした場所のどこかに物体を置いてオペレーターに戻って終了
-    def take(self):
-        if self.sub_state == 0:
-            self.destination_pub.publish(self.location)
-            self.sub_state = 1
-        elif self.sub_state == 1:
-            print 'navi'
-            if self.navigation_result == 'succsess':
-                self.manipulation_pub.publish(self.obj)
-                self.navigation_result = 'null'
-                self.sub_state =2
-        elif self.sub_state == 2:
-            print 'mani'
-            if self.manipulation_result == True:
-                print 'state:arm change'
-                self.changing_pose_req_pub.publish('carry')
-                rospy.sleep(3)#かかる時間によって変更
-                self.sub_state = 3
-                self.manipulation_result = False
-        elif self.sub_state == 3: 
-                self.destination_pub.publish("arg")#変更必須!argは物体を置く場所
-                self.sub_state = 4
-        elif self.sub_state == 4:
-            print 'navi'
-            if self.navigation_result == 'succsess':
-                self.navigation_result = 'null'
-                self.changing_pose_req_pub.publish('put')#ある場所のテーブルに物体を置く。もしかしたら時間でなく、成功したか判断しないといけないかも。
-                rospy.sleep(60)#かかる時間によって変更または、実行結果を受け取る必要がある
-                self.sub_state = 5
-        elif self.sub_state == 5:
-            self.destination_pub.publish("operator")
-            self.sub_state = 6
-        elif self.sub_state == 6:
-            print 'return'
-            if self.navigation_result == 'succsess':
-                self.navigation_result = 'null'
-                self.sub_state = 0
-                self.action = 'none'
-                self.location = 'none'
-                self.obj = 'none'
-                self.answer = 'none'
-                self.task_count+=1
-                
-    """def sample(self):#新たな命令を追加する場合はこれを参考にして下さい
-        self.gpsrAPI_pub.publish(False)
-        self.com = self.action
-        self.API_state = 0
-        #ここに処理(navi,mani..)を書く
-        self.sub_state = 0
-        self.com = 'null'
-        self.action = 'none'
-        self.location = 'none'
-        self.obj = 'none'
+            
+    def answer(self):
+        CMD ='/usr/bin/picospeaker {answer}'.format(answer=self.answer)
+        subprocess.call(CMD.strip().split(" "))
+        rospy.sleep(3)#sentenceの長さによって変更
         self.answer = 'none'
-        self.task_count+=1"""
+        self.action = 'none'
+            
+    def place(self):
+        if self.sub_state == 0:
+            self.changing_pose_req_pub.publish('place')
+            self.sub_state = 1
+        elif self.sub_state = 1:
+            print 'place'
+            if self.arm_change_result == True:
+                self.arm_change_result = False
+                self.action = 'none'
+                self.sub_state = 0
 
+    def bring(self):#仕様を確認する
+        if self.sub_state == 0:
+            self.changing_pose_req_pub.publish('pass')
+            self.sub_state = 1
+        elif self.sub_state = 1:
+            print 'pass'
+            if self.arm_change_result == True:
+                self.arm_change_result = False
+                self.action = 'none'
+                self.sub_state = 0
+                    
+    def operater(self):
+        self.task_count+=1
+        if self.task_count == 3:
+            self.finishState()
+                
     def finishState(self):
         self.gpsrAPI_pub.publish(False)
         self.action = 'finish'
@@ -255,14 +146,15 @@ class GPSRNode:
     def manipulateResult(self,result):
         self.manipulation_result = result.data
 
+    def changePoseResult(self,result):
+        self.place_result = result.data
+
     def loopMain(self):
         print '///start GPSR//'
         while not rospy.is_shutdown():
             try:
                 print ''
-                print '--{action}-- [task_count:{count}]'.format(action=self.action,count=self.task_count)
-                if self.task_count == 3:#task_count == 繰り返したい回数
-                    self.finishState()    
+                print '--{action}-- [task_count:{count}]'.format(action=self.action,count=self.task_count)   
                 if self.action == 'none':
                     if self.API_state == 0:
                         self.gpsrAPI_pub.publish(True)
@@ -272,16 +164,20 @@ class GPSRNode:
                 elif self.action != 'none':
                     self.gpsrAPI_pub.publish(False)
                     self.API_state = 0  
-                    if self.action == "Tell":
-                        self.tell()
-                    elif self.action == "Locate":
-                        self.locate()
-                    elif self.action == "Find":
-                        self.find()
-                    elif self.action == "Bring":
-                        self.bring()
-                    elif self.action == "Take":
-                        self.take()              
+                    if self.action == "operater":
+                        self.operater()
+                    elif self.action == "navi":
+                        self.navi()
+                    elif self.action == "mani":
+                        self.mani()
+                    elif self.action == "search":
+                        self.search()
+                    elif self.action == "answer":
+                        self.answer()              
+                    elif self.action == "place":
+                        self.place()              
+                    elif self.action == "bring":
+                        self.bring()        
             except IndexError:
                 pass
             rospy.sleep(0.5)    
