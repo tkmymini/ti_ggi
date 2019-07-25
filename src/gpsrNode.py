@@ -25,7 +25,6 @@ class GPSRNode:
 
         #最低限必要な変数
         self.sub_state = 0
-        self.API_state = 0
         self.task_count = 0
         self.action = 'none'
         self.location = 'none'
@@ -126,7 +125,7 @@ class GPSRNode:
                     
     def operater(self):
         self.task_count+=1
-        self.action_res_pub(True)
+        self.gpsrAPI_pub.publish(True)
         self.action ='none' 
         if self.task_count == 3:
             self.finishState()
@@ -162,11 +161,7 @@ class GPSRNode:
                 print ''
                 print '--{action}-- [task_count:{count}]'.format(action=self.action,count=self.task_count)   
                 if self.action == 'none':
-                    if self.API_state == 0:
-                        self.gpsrAPI_pub.publish(True)
-                        self.API_state = 1
-                    elif self.API_state == 1:
-                        print "command waiting.."
+                    print "command waiting.."
                 elif self.action != 'none':
                     self.gpsrAPI_pub.publish(False)
                     self.API_state = 0  
@@ -192,5 +187,6 @@ if __name__ == '__main__':
     rospy.init_node('gpsr_node')
     gpsr = GPSRNode()
     rospy.sleep(1)
+    self.gpsrAPI_pub.publish(True)
     gpsr.loopMain()
     rospy.spin()
