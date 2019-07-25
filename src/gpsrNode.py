@@ -13,7 +13,7 @@ class GPSRNode:
         self.navi_result_sub = rospy.Subscriber('/navigation/result',String,self.navigateResult)
         self.mani_result_sub = rospy.Subscriber('/object/grasp_res',Bool,self.manipulateResult)
         self.search_result_sub = rospy.Subscriber('/object/recog_res',Bool,self.searchResult)
-        self.change_pose_res_sub = rospy('/arm/changing_pose_res',Bool,self.changePoseResult)
+        self.change_pose_res_sub = rospy.Subscriber('/arm/changing_pose_res',Bool,self.changePoseResult)
         
         self.destination_pub = rospy.Publisher('/navigation/destination',String,queue_size=1)
         self.search_pub = rospy.Publisher('/object/recog_req',String,queue_size=10)
@@ -30,25 +30,22 @@ class GPSRNode:
         self.location = 'none'
         self.obj = 'none'
         self.answer = 'none'
-        #タスクをするために必要な動作
-        self.navigate = 'go'
-        self.search_object = 'find'
-        self.manipulate_object = 'manipulate'
-        self.return_operator = 'return'
-        self.finish = 'finish'
         #各result
         self.navigation_result = 'null'
         self.search_result = False
         self.manipulation_result = False
+        self.place_result = False
+        
         #実行可能な動作リスト
-        self.com_list = ['navi','mani','search','answer','bring','place','opetater']
+        self.com_list = ['navi','mani','search','answer','bring','place','operater']
        
     def Command(self,command_list):
-        print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
-        rospy.sleep(3)#test
+        #print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
+        #rospy.sleep(3)#test
         for num in range(len(self.com_list)):
             if self.com_list[num] in command_list.action:
                 self.action = self.com_list[num]#command_list.action
+        print 'action',self.action
         self.location = command_list.location
         self.obj = command_list.obj
         self.answer = command_list.answer
@@ -68,7 +65,7 @@ class GPSRNode:
     def mani(self):
         if self.sub_state == 0:
             self.manipulation_pub.publish(self.obj)
-            self.self.sub_state = 1
+            self.sub_state = 1
         elif self.sub_state == 1:
             print 'mani'
             if self.manipulation_result == True:
@@ -91,8 +88,8 @@ class GPSRNode:
                 self.action = 'none'
                 self.sub_state = 0
             
-    def answer(self):
-        CMD ='/usr/bin/picospeaker {answer}'.format(answer=self.answer)
+    def Answer(self):
+        CMD ='/usr/bin/picospeaker {ans}'.format(ans=self.answer)
         subprocess.call(CMD.strip().split(" "))
         rospy.sleep(3)#sentenceの長さによって変更
         self.answer = 'none'
@@ -102,10 +99,10 @@ class GPSRNode:
         if self.sub_state == 0:
             self.changing_pose_req_pub.publish('place')
             self.sub_state = 1
-        elif self.sub_state = 1:
+        elif self.sub_state == 1:
             print 'place'
-            if self.arm_change_result == True:
-                self.arm_change_result = False
+            if self.place_result == True:
+                self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
 
@@ -113,15 +110,16 @@ class GPSRNode:
         if self.sub_state == 0:
             self.changing_pose_req_pub.publish('pass')
             self.sub_state = 1
-        elif self.sub_state = 1:
+        elif self.sub_state == 1:
             print 'pass'
-            if self.arm_change_result == True:
-                self.arm_change_result = False
+            if self.place_result == True:
+                self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
                     
     def operater(self):
         self.task_count+=1
+        self.action ='none' 
         if self.task_count == 3:
             self.finishState()
                 
@@ -173,7 +171,7 @@ class GPSRNode:
                     elif self.action == "search":
                         self.search()
                     elif self.action == "answer":
-                        self.answer()              
+                        self.Answer()              
                     elif self.action == "place":
                         self.place()              
                     elif self.action == "bring":
