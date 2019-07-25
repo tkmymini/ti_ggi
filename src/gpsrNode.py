@@ -20,7 +20,8 @@ class GPSRNode:
         self.manipulation_pub = rospy.Publisher('/object/grasp_req',String,queue_size=10)
         self.changing_pose_req_pub = rospy.Publisher('/arm/changing_pose_req',String,queue_size=1)
         self.m6_reqest_pub = rospy.Publisher('/m6_controller/command',Float64,queue_size=1)
-        self.gpsrAPI_pub = rospy.Publisher('/gpsrface',Bool,queue_size=10)
+        self.gpsrAPI_pub = rospy.Publisher('/gpsrface',Bool,queue_size=10)#APIのON、OFF切り替え
+        self.action_res_pub = rospy.Publisher('/command_res',Bool,queue_size=1)#動作の終了を知らせる
 
         #最低限必要な変数
         self.sub_state = 0
@@ -61,6 +62,7 @@ class GPSRNode:
                 self.location = 'none'
                 self.action = 'none'
                 self.sub_state = 0
+                self.action_res_pub(True)
 
     def mani(self):
         if self.sub_state == 0:
@@ -75,6 +77,7 @@ class GPSRNode:
                 self.sub_state = 0
                 self.changing_pose_req_pub.publish('carry')
                 rospy.sleep(3)
+                self.action_res_pub(True)
         
     def search(self):
         if self.sub_state == 0:
@@ -87,6 +90,7 @@ class GPSRNode:
                 self.obj = 'none'
                 self.action = 'none'
                 self.sub_state = 0
+                self.action_res_pub(True)
             
     def Answer(self):
         CMD ='/usr/bin/picospeaker {ans}'.format(ans=self.answer)
@@ -94,6 +98,7 @@ class GPSRNode:
         rospy.sleep(3)#sentenceの長さによって変更
         self.answer = 'none'
         self.action = 'none'
+        self.action_res_pub(True)
             
     def place(self):
         if self.sub_state == 0:
@@ -105,6 +110,7 @@ class GPSRNode:
                 self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
+                self.action_res_pub(True)
 
     def bring(self):#仕様を確認する
         if self.sub_state == 0:
@@ -116,9 +122,11 @@ class GPSRNode:
                 self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
+                self.action_res_pub(True)
                     
     def operater(self):
         self.task_count+=1
+        self.action_res_pub(True)
         self.action ='none' 
         if self.task_count == 3:
             self.finishState()
