@@ -35,14 +35,13 @@ class GPSRNode:
         self.search_result = False
         self.manipulation_result = False
         self.place_result = False
-        
-        #実行可能な動作リスト
+        #実行可能な動作リスト#このリストはcommand_listのループが必要なければこのリストはいらない
         self.com_list = ['navi','mani','search','answer','bring','place','operater']
        
     def Command(self,command_list):
         #print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
         #rospy.sleep(3)#test
-        """for num in range(len(self.com_list)):#必要ない可能性あり
+        """for num in range(len(self.com_list)):#音声処理が正しくできていれば必要ない可能性大
             if self.com_list[num] in command_list.action:
                 self.action = self.com_list[num]#command_list.action"""
         self.action = command_list.action
