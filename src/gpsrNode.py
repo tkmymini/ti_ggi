@@ -42,10 +42,11 @@ class GPSRNode:
     def Command(self,command_list):
         #print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
         #rospy.sleep(3)#test
-        for num in range(len(self.com_list)):
+        """for num in range(len(self.com_list)):#必要ない可能性あり
             if self.com_list[num] in command_list.action:
-                self.action = self.com_list[num]#command_list.action
-        print 'action',self.action
+                self.action = self.com_list[num]#command_list.action"""
+        self.action = command_list.action
+        #print 'action',self.action
         self.location = command_list.location
         self.obj = command_list.obj
         self.answer = command_list.answer
@@ -187,6 +188,6 @@ if __name__ == '__main__':
     rospy.init_node('gpsr_node')
     gpsr = GPSRNode()
     rospy.sleep(1)
-    self.gpsrAPI_pub.publish(True)
+    gpsr.gpsrAPI_pub.publish(True)
     gpsr.loopMain()
     rospy.spin()
