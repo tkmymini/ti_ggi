@@ -62,7 +62,7 @@ class GPSRNode:
                 self.location = 'none'
                 self.action = 'none'
                 self.sub_state = 0
-                self.action_res_pub(True)
+                self.action_res_pu.publish(True)
 
     def mani(self):
         if self.sub_state == 0:
@@ -77,7 +77,7 @@ class GPSRNode:
                 self.sub_state = 0
                 self.changing_pose_req_pub.publish('carry')
                 rospy.sleep(3)
-                self.action_res_pub(True)
+                self.action_res_pub.publish(True)
         
     def search(self):
         if self.sub_state == 0:
@@ -90,7 +90,7 @@ class GPSRNode:
                 self.obj = 'none'
                 self.action = 'none'
                 self.sub_state = 0
-                self.action_res_pub(True)
+                self.action_res_pub.publish(True)
             
     def Answer(self):
         CMD ='/usr/bin/picospeaker {ans}'.format(ans=self.answer)
@@ -98,7 +98,7 @@ class GPSRNode:
         rospy.sleep(3)#sentenceの長さによって変更
         self.answer = 'none'
         self.action = 'none'
-        self.action_res_pub(True)
+        self.action_res_pub.publish(True)
             
     def place(self):
         if self.sub_state == 0:
@@ -110,7 +110,7 @@ class GPSRNode:
                 self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
-                self.action_res_pub(True)
+                self.action_res_pub.publish(True)
 
     def bring(self):#仕様を確認する
         if self.sub_state == 0:
@@ -122,26 +122,27 @@ class GPSRNode:
                 self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
-                self.action_res_pub(True)
+                self.action_res_pub.publish(True)
                     
     def operater(self):
         self.task_count+=1
         self.gpsrAPI_pub.publish(True)
         self.action ='none' 
-        if self.task_count == 3:
-            self.finishState()
-                
+
     def finishState(self):
-        self.gpsrAPI_pub.publish(False)
-        self.action = 'finish'
-        self.destination_pub.publish('entrance')
-        print 'navi entrance'
-        if self.navigation_result == 'succsess':
-            CMD = '/usr/bin/picospeaker %s' % 'Finished gpsr'
-            subprocess.call(CMD.strip().split(" "))
-            print ''
-            print 'finish GPSR'
-            exit()
+        if self.sub_state == 0:
+            self.gpsrAPI_pub.publish(False)
+            self.action = 'finish'
+            self.destination_pub.publish('entrance')
+            self.sub_state = 1
+        elif self.sub_state == 1:
+            print 'navi entrance'
+            if self.navigation_result == 'succsess':
+                CMD = '/usr/bin/picospeaker %s' % 'Finished gpsr'
+                subprocess.call(CMD.strip().split(" "))
+                print ''
+                print 'finish GPSR'
+                exit()
             
     def navigateResult(self,result):
         self.navigation_result = result.data
@@ -160,7 +161,9 @@ class GPSRNode:
         while not rospy.is_shutdown():
             try:
                 print ''
-                print '--{action}-- [task_count:{count}]'.format(action=self.action,count=self.task_count)   
+                print '--{action}-- [task_count:{count}]'.format(action=self.action,count=self.task_count)
+                if self.task_count == 3:
+                    self.finishState()
                 if self.action == 'none':
                     print "command waiting.."
                 elif self.action != 'none':
