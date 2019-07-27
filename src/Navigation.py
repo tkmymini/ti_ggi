@@ -19,15 +19,12 @@ class Navigation:
    
         self.result_pub = rospy.Publisher('/navigation/result',String,queue_size= 10)
    
-        self.location_list = [["living",-5.47,-0.0818,2.5,0],
-                              ["waypoint1",4.93,-0.55,0,0],
-                              ["waypoint2",0,0,0,0],
-                              ["waypoint3",0,0,0,0],
-                              ["waypoint4",2.95,-1.35,0,0]]
+        self.location_list = [["living",-5.47,-0.0818,2.5],
+                              ["waypoint1",4.93,-0.55,0],
+                              ["waypoint2",0,0,0],
+                              ["waypoint3",0,0,0],
+                              ["waypoint4",2.95,-1.35,0]]
         
-        self.robot_pose_x = 999
-        self.robot_pose_y = 999
-
     def NavigateToDestination(self,destination):
         location_num = -1
         for location_num_i in range(len(self.location_list)):
