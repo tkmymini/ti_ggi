@@ -52,6 +52,7 @@ class GPSRNode:
     
     def navi(self):
         if self.sub_state == 0:
+            self.m6_reqest_pub.publish(0.3)
             self.destination_pub.publish(self.location)
             self.sub_state = 1
         elif self.sub_state == 1:
@@ -61,10 +62,11 @@ class GPSRNode:
                 self.location = 'none'
                 self.action = 'none'
                 self.sub_state = 0
-                self.action_res_pu.publish(True)
+                self.action_res_pub.publish(True)
 
     def mani(self):
         if self.sub_state == 0:
+            self.m6_reqest_pub.publish(-0.07)
             self.manipulation_pub.publish(self.obj)
             self.sub_state = 1
         elif self.sub_state == 1:
@@ -80,6 +82,7 @@ class GPSRNode:
         
     def search(self):
         if self.sub_state == 0:
+            self.m6_reqest_pub.publish(-0.07)
             self.search_pub.publish(self.obj)
             self.sub_state = 1
         elif self.sub_state == 1:
