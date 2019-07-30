@@ -194,13 +194,15 @@ class GPSRNode:
                 if self.task_count == 3:
                     self.finishState()
                 if self.action == 'none':
+                    if self.sub_state == 0:
+                        CMD = '/usr/bin/picospeaker %s' % 'command waiting'
+                        subprocess.call(CMD.strip().split(" "))
+                        self.sub_state = 1
+                elif self.sub_state == 1:
                     print "command waiting.."
-                    CMD = '/usr/bin/picospeaker %s' % 'command waiting'
-                    subprocess.call(CMD.strip().split(" "))
-                    rospy.sleep(5)
                 elif self.action != 'none':
+                    self.sub_state = 0
                     self.gpsrAPI_pub.publish(False)
-                    self.API_state = 0  
                     if self.action == "end":
                         self.end()
                     elif self.action == "go":
