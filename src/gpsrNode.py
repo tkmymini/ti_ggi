@@ -36,7 +36,7 @@ class GPSRNode:
         self.manipulation_result = False
         self.place_result = False
         #実行可能な動作リスト#このリストはcommand_listのループが必要なければこのリストはいらない
-        self.com_list = ['navi','mani','search','answer','bring','place','operater']
+        self.com_list = ['go','grasp','search','speak','pass','place','end']
        
     def Command(self,command_list):
         #print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
@@ -50,7 +50,7 @@ class GPSRNode:
         self.obj = command_list.obj
         self.answer = command_list.answer
     
-    def navi(self):
+    def go(self):
         if self.sub_state == 0:
             self.m6_reqest_pub.publish(0.3)
             self.destination_pub.publish(self.location)
@@ -64,7 +64,7 @@ class GPSRNode:
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
 
-    def mani(self):
+    def grasp(self):
         if self.sub_state == 0:
             self.m6_reqest_pub.publish(-0.07)
             self.manipulation_pub.publish(self.obj)
@@ -94,7 +94,7 @@ class GPSRNode:
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
             
-    def Answer(self):
+    def speak(self):
         CMD ='/usr/bin/picospeaker {ans}'.format(ans=self.answer)
         subprocess.call(CMD.strip().split(" "))
         rospy.sleep(3)#sentenceの長さによって変更
@@ -114,7 +114,7 @@ class GPSRNode:
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
 
-    def bring(self):#仕様を確認する
+    def Pass(self):#仕様を確認する
         if self.sub_state == 0:
             self.changing_pose_req_pub.publish('pass')
             self.sub_state = 1
@@ -126,7 +126,7 @@ class GPSRNode:
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
                     
-    def operater(self):
+    def end(self):
         self.task_count+=1
         self.gpsrAPI_pub.publish(True)
         self.action ='none' 
@@ -171,20 +171,20 @@ class GPSRNode:
                 elif self.action != 'none':
                     self.gpsrAPI_pub.publish(False)
                     self.API_state = 0  
-                    if self.action == "operater":
-                        self.operater()
-                    elif self.action == "navi":
-                        self.navi()
-                    elif self.action == "mani":
-                        self.mani()
+                    if self.action == "end":
+                        self.end()
+                    elif self.action == "go":
+                        self.go()
+                    elif self.action == "grasp":
+                        self.grasp()
                     elif self.action == "search":
                         self.search()
-                    elif self.action == "answer":
-                        self.Answer()              
+                    elif self.action == "speak":
+                        self.speak()              
                     elif self.action == "place":
                         self.place()              
-                    elif self.action == "bring":
-                        self.bring()        
+                    elif self.action == "pass":
+                        self.Pass()        
             except IndexError:
                 pass
             rospy.sleep(0.5)    
