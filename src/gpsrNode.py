@@ -14,6 +14,7 @@ class GPSRNode:
         self.mani_result_sub = rospy.Subscriber('/object/grasp_res',Bool,self.manipulateResult)
         self.search_result_sub = rospy.Subscriber('/object/recog_res',Bool,self.searchResult)
         self.change_pose_res_sub = rospy.Subscriber('/arm/changing_pose_res',Bool,self.changePoseResult)
+        #self.sentence_sub = rospy.Subscriber('',String,self.sentence)#未実装 
         
         self.destination_pub = rospy.Publisher('/navigation/destination',String,queue_size=1)
         self.search_pub = rospy.Publisher('/object/recog_req',String,queue_size=10)
@@ -30,6 +31,7 @@ class GPSRNode:
         self.location = 'none'
         self.obj = 'none'
         self.answer = 'none'
+        self.sentence = 'null'#APIから直接の文章#未実装
         #各result
         self.navigation_result = 'null'
         self.search_result = False
@@ -56,7 +58,7 @@ class GPSRNode:
             self.destination_pub.publish(self.location)
             self.sub_state = 1
         elif self.sub_state == 1:
-            print 'navi'
+            print 'navigation'
             if self.navigation_result == 'succsess':
                 self.navigation_result = 'null'
                 self.location = 'none'
@@ -70,7 +72,7 @@ class GPSRNode:
             self.manipulation_pub.publish(self.obj)
             self.sub_state = 1
         elif self.sub_state == 1:
-            print 'mani'
+            print 'manipulation'
             if self.manipulation_result == True:
                 self.manipulation_result = False
                 self.obj = 'none'
@@ -88,6 +90,9 @@ class GPSRNode:
         elif self.sub_state == 1:
             print 'search'
             if self.search_result == True:
+                CMD ='/usr/bin/picospeaker I find {obj}'.format(obj=self.obj)
+                subprocess.call(CMD.strip().split(" "))
+                rospy.sleep(3)#sentenceの長さによって変更
                 self.search_result = False
                 self.obj = 'none'
                 self.action = 'none'
@@ -107,14 +112,32 @@ class GPSRNode:
             self.changing_pose_req_pub.publish('place')
             self.sub_state = 1
         elif self.sub_state == 1:
-            print 'place'
+            print 'put'
             if self.place_result == True:
                 self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
 
-    def Pass(self):#仕様を確認する
+    """def Pass(self):#音声仕様
+        if self.sub_state == 0:
+            self.changing_pose_req_pub.publish('pass')
+            #rospy.sleep(2)動作に合わせて変更いらないかもしれない
+            self.sub_state = 1
+        elif self.sub_state == 1:
+            CMD ='/usr/bin/picospeaker %s' % 'Here you are'
+            subprocess.call(CMD.strip().split(" "))
+            self.gpsrAPI_pub.publish(True)
+            rospy.sleep(2)#sentenceの長さによって変更
+            self.sub_state = 2
+        elif self.sub_state == 2:
+            if self.sentence == 'thank you':
+                self.gpsrAPI_pub.publish(False)
+                self.action = 'none'
+                self.sub_state = 0
+                self.action_res_pub.publish(True)"""
+
+    """def Pass(self):#センサ値による仕様
         if self.sub_state == 0:
             self.changing_pose_req_pub.publish('pass')
             self.sub_state = 1
@@ -124,7 +147,7 @@ class GPSRNode:
                 self.place_result = False
                 self.action = 'none'
                 self.sub_state = 0
-                self.action_res_pub.publish(True)
+                self.action_res_pub.publish(True)"""
                     
     def end(self):
         self.task_count+=1
@@ -148,6 +171,7 @@ class GPSRNode:
             
     def navigateResult(self,result):
         self.navigation_result = result.data
+        print self.navigation_result
 
     def searchResult(self,result):
         self.search_result = result.data
@@ -155,8 +179,11 @@ class GPSRNode:
     def manipulateResult(self,result):
         self.manipulation_result = result.data
 
-    def changePoseResult(self,result):
+    def changePoseResult(self,result):#現在[19/07/30]placeのみ
         self.place_result = result.data
+
+    def sentence(self,sentence):#APIから直接sentenceを受け取る#未実装
+        self.sentence = sentence.data
 
     def loopMain(self):
         print '///start GPSR//'
@@ -194,5 +221,6 @@ if __name__ == '__main__':
     gpsr = GPSRNode()
     rospy.sleep(1)
     gpsr.gpsrAPI_pub.publish(True)
+    gpsr.action_res_pub.publish(True)
     gpsr.loopMain()
     rospy.spin()
