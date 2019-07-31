@@ -63,6 +63,18 @@ class Navigation:
                 self.clear_costmaps()
                 print 'clear'
                 rospy.sleep(1.0)
+                ac = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+                if ac.wait_for_server(rospy.Duration(5)) == 1:
+                    print "wait for action client rising up 0"
+                goal = MoveBaseGoal()
+                goal.target_pose.header.frame_id = 'map'          # 地図座標系           
+                goal.target_pose.header.stamp = rospy.Time.now() # 現在時刻              
+                goal.target_pose.pose.position.x =  self.location_list[location_num][1]
+                goal.target_pose.pose.position.y =  self.location_list[location_num][2]
+                q = tf.transformations.quaternion_from_euler(0, 0, self.location_list[location_num][3])
+                goal.target_pose.pose.orientation = Quaternion(q[0],q[1],q[2],q[3])
+                ac.send_goal(goal);
+                
            
 if __name__ == '__main__':
     rospy.init_node('navigation',anonymous=True)

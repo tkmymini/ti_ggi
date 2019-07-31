@@ -26,6 +26,7 @@ class GPSRNode:
 
         #最低限必要な変数
         self.sub_state = 0
+        self.voice_state = 0
         self.task_count = 0
         self.action = 'none'
         self.location = 'none'
@@ -152,6 +153,7 @@ class GPSRNode:
     def end(self):
         self.task_count+=1
         self.gpsrAPI_pub.publish(True)
+        self.action_res_pub.publish(True)#test用
         self.action ='none' 
 
     def finishState(self):
@@ -194,14 +196,14 @@ class GPSRNode:
                 if self.task_count == 3:
                     self.finishState()
                 if self.action == 'none':
-                    if self.sub_state == 0:
+                    if self.voice_state == 0:
                         CMD = '/usr/bin/picospeaker %s' % 'command waiting'
                         subprocess.call(CMD.strip().split(" "))
-                        self.sub_state = 1
-                elif self.sub_state == 1:
-                    print "command waiting.."
+                        self.voice_state = 1
+                    elif self.voice_state == 1:
+                        print "command waiting.."
                 elif self.action != 'none':
-                    self.sub_state = 0
+                    self.voice_state = 0
                     self.gpsrAPI_pub.publish(False)
                     if self.action == "end":
                         self.end()
