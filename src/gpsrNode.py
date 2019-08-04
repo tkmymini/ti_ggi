@@ -4,6 +4,7 @@
 import rospy
 from geometry_msgs.msg import Twist
 import subprocess
+from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String,Bool,Float64
 from ti_gpsr.msg import array
 
@@ -14,15 +15,17 @@ class GPSRNode:
         self.mani_result_sub = rospy.Subscriber('/object/grasp_res',Bool,self.manipulateResult)
         self.search_result_sub = rospy.Subscriber('/object/recog_res',Bool,self.searchResult)
         self.change_pose_res_sub = rospy.Subscriber('/arm/changing_pose_res',Bool,self.changePoseResult)
+        self.laser_sub = rospy.Subscriber('/scan', LaserScan, self.getLaserCB)#start
         #self.sentence_sub = rospy.Subscriber('',String,self.sentence)#未実装 
         
         self.destination_pub = rospy.Publisher('/navigation/destination',String,queue_size=1)
-        self.search_pub = rospy.Publisher('/object/recog_req',String,queue_size=10)
-        self.manipulation_pub = rospy.Publisher('/object/grasp_req',String,queue_size=10)
+        self.search_pub = rospy.Publisher('/object/recog_req',String,queue_size=1)
+        self.manipulation_pub = rospy.Publisher('/object/grasp_req',String,queue_size=1)
         self.changing_pose_req_pub = rospy.Publisher('/arm/changing_pose_req',String,queue_size=1)
         self.m6_reqest_pub = rospy.Publisher('/m6_controller/command',Float64,queue_size=1)
         self.gpsrAPI_pub = rospy.Publisher('/gpsrface',Bool,queue_size=10)#APIのON、OFF切り替え
         self.action_res_pub = rospy.Publisher('/command_res',Bool,queue_size=1)#動作の終了を知らせる
+        self.cmd_vel_pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 1)#start
 
         #最低限必要な変数
         self.sub_state = 0
@@ -38,8 +41,13 @@ class GPSRNode:
         self.search_result = False
         self.manipulation_result = False
         self.place_result = False
+        #startに必要な関数
+        self.min_laser_dist = 999.9
+        self.front_laser_dist = 999.9
         #実行可能な動作リスト#このリストはcommand_listのループが必要なければこのリストはいらない
         self.com_list = ['go','grasp','search','speak','pass','place','end']
+        #start()の条件のみ使用しています
+        self.start_flg = 0
        
     def Command(self,command_list):
         #print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
@@ -61,11 +69,12 @@ class GPSRNode:
         elif self.sub_state == 1:
             print 'navigation'
             if self.navigation_result == 'succsess':
-                self.navigation_result = 'null'
+                self.navigation_result = 'none'
                 self.location = 'none'
                 self.action = 'none'
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
+                self.start_flg = 1
 
     def grasp(self):
         if self.sub_state == 0:
@@ -149,7 +158,34 @@ class GPSRNode:
                 self.action = 'none'
                 self.sub_state = 0
                 self.action_res_pub.publish(True)"""
-                    
+    
+    def start(self):
+        try:
+            while not rospy.is_shutdown() and self.front_laser_dist == 999.9:
+                rospy.sleep(1.0)
+            initial_distance = self.front_laser_dist
+            CMD = '/usr/bin/picospeaker %s' % 'Please open the door'
+            subprocess.call(CMD.strip().split(" "))
+            while not rospy.is_shutdown() and self.front_laser_dist <= initial_distance + 0.88:#試走場のドアの幅を参考
+                rospy.loginfo(" Waiting for door open")
+                rospy.sleep(2.0)
+            rospy.sleep(2.0)
+            CMD = '/usr/bin/picospeaker %s' % 'Thank you'
+            subprocess.call(CMD.strip().split(" "))
+            while not rospy.is_shutdown() and not self.front_laser_dist < 2.0:
+                twist_cmd = Twist()
+                twist_cmd.linear.x = 0.25
+                self.cmd_vel_pub.publish(twist_cmd)
+            rospy.sleep(0.5)
+            rospy.loginfo(" Enter the room")
+            self.location = 'shelf'
+            while not rospy.is_shutdown() and self.start_flg == 0:
+                self.go()
+                rospy.sleep(2.0)
+        except rospy.ROSInterruptException:
+            rospy.loginfo(" Interrupted")
+            pass
+    
     def end(self):
         self.task_count+=1
         self.gpsrAPI_pub.publish(True)
@@ -186,14 +222,19 @@ class GPSRNode:
 
     def sentence(self,sentence):#APIから直接sentenceを受け取る#未実装
         self.sentence = sentence.data
-
+        
+    def getLaserCB(self,laser_scan):
+        self.laser_dist = laser_scan.ranges
+        self.min_laser_dist = min(laser_scan.ranges[180:540])
+        self.front_laser_dist = laser_scan.ranges[359]
+        
     def loopMain(self):
         print '///start GPSR//'
         while not rospy.is_shutdown():
             try:
                 print ''
                 print '--{action}-- [task_count:{count}]'.format(action=self.action,count=self.task_count)
-                if self.task_count == 3:
+                if self.task_count == 1:
                     self.finishState()
                 if self.action == 'none':
                     if self.voice_state == 0:
@@ -227,6 +268,7 @@ if __name__ == '__main__':
     rospy.init_node('gpsr_node')
     gpsr = GPSRNode()
     rospy.sleep(1)
+    gpsr.start()
     gpsr.gpsrAPI_pub.publish(True)
     gpsr.action_res_pub.publish(True)#test用
     gpsr.loopMain()
