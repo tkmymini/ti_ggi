@@ -45,18 +45,15 @@ class GPSRNode:
         self.min_laser_dist = 999.9
         self.front_laser_dist = 999.9
         #実行可能な動作リスト#このリストはcommand_listのループが必要なければこのリストはいらない
-        self.com_list = ['go','grasp','search','speak','pass','place','end']
+        self.com_list = ['go','grasp','search','speak','give','place','end']#pass-->givenに名前変更
         #start()の条件のみ使用しています
         self.start_flg = 0
        
     def Command(self,command_list):
-        #print 'action:{action} location:{location} obj:{obj} answer:{answer}'.format(action=command_list.action,location=command_list.location,obj=command_list.obj,answer=command_list.answer)#test
-        #rospy.sleep(3)#test
         """for num in range(len(self.com_list)):#音声処理が正しくできていれば必要ない可能性大
             if self.com_list[num] in command_list.action:
                 self.action = self.com_list[num]#command_list.action"""
         self.action = command_list.action
-        #print 'action',self.action
         self.location = command_list.location
         self.obj = command_list.obj
         self.answer = command_list.answer
@@ -129,10 +126,10 @@ class GPSRNode:
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
 
-    """def Pass(self):#音声仕様
+    """def Give(self):#音声仕様
         if self.sub_state == 0:
             self.changing_pose_req_pub.publish('pass')
-            #rospy.sleep(2)動作に合わせて変更いらないかもしれない
+            #rospy.sleep(2)
             self.sub_state = 1
         elif self.sub_state == 1:
             CMD ='/usr/bin/picospeaker %s' % 'Here you are'
@@ -147,7 +144,7 @@ class GPSRNode:
                 self.sub_state = 0
                 self.action_res_pub.publish(True)"""
 
-    """def Pass(self):#センサ値による仕様
+    """def Give(self):#センサ値による仕様
         if self.sub_state == 0:
             self.changing_pose_req_pub.publish('pass')
             self.sub_state = 1
@@ -258,8 +255,8 @@ class GPSRNode:
                         self.speak()              
                     elif self.action == "place":
                         self.place()              
-                    elif self.action == "pass":
-                        self.Pass()        
+                    elif self.action == "give":
+                        self.Give()        
             except IndexError:
                 pass
             rospy.sleep(0.5)    
