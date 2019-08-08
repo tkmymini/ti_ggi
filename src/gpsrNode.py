@@ -3,7 +3,6 @@
 
 import rospy
 from geometry_msgs.msg import Twist
-import subprocess
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String,Bool,Float64
 from ti_gpsr.msg import array
@@ -15,17 +14,17 @@ class GPSRNode:
         self.mani_result_sub = rospy.Subscriber('/object/grasp_res',Bool,self.manipulateResult)
         self.search_result_sub = rospy.Subscriber('/object/recog_res',Bool,self.searchResult)
         self.change_pose_res_sub = rospy.Subscriber('/arm/changing_pose_res',Bool,self.changePoseResult)
-        self.laser_sub = rospy.Subscriber('/scan', LaserScan, self.getLaserCB)#start
-        #self.sentence_sub = rospy.Subscriber('',String,self.sentence)#未実装 
-        
+        self.laser_sub = rospy.Subscriber('/scan',LaserScan,self.getLaserCB)#start
+              
         self.destination_pub = rospy.Publisher('/navigation/destination',String,queue_size=1)
         self.search_pub = rospy.Publisher('/object/recog_req',String,queue_size=1)
         self.manipulation_pub = rospy.Publisher('/object/grasp_req',String,queue_size=1)
         self.changing_pose_req_pub = rospy.Publisher('/arm/changing_pose_req',String,queue_size=1)
         self.m6_reqest_pub = rospy.Publisher('/m6_controller/command',Float64,queue_size=1)
-        self.gpsrAPI_pub = rospy.Publisher('/gpsrface',Bool,queue_size=10)#APIのON、OFF切り替え
+        self.gpsrAPI_pub = rospy.Publisher('/gpsrface',Bool,queue_size=1)#APIのON、OFF切り替え
         self.action_res_pub = rospy.Publisher('/command_res',Bool,queue_size=1)#動作の終了を知らせる
-        self.cmd_vel_pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 1)#start
+        self.cmd_vel_pub = rospy.Publisher('/cmd_vel_mux/input/teleop',Twist,queue_size = 1)#start
+        self.tts_pub = rospy.Publisher('/tts',String,queue_size = 1)
 
         #最低限必要な変数
         self.sub_state = 0
@@ -35,17 +34,16 @@ class GPSRNode:
         self.location = 'none'
         self.obj = 'none'
         self.answer = 'none'
-        self.sentence = 'null'#APIから直接の文章#未実装
         #各result
         self.navigation_result = 'null'
         self.search_result = False
         self.manipulation_result = False
-        self.place_result = False
+        self.arm_change_result = False
         #startに必要な関数
         self.min_laser_dist = 999.9
         self.front_laser_dist = 999.9
         #実行可能な動作リスト#このリストはcommand_listのループが必要なければこのリストはいらない
-        self.com_list = ['go','grasp','search','speak','give','place','end']#pass-->givenに名前変更
+        self.com_list = ['go','grasp','search','speak','give','place','end']
         #start()の条件のみ使用しています
         self.start_flg = 0
        
@@ -97,8 +95,8 @@ class GPSRNode:
         elif self.sub_state == 1:
             print 'search'
             if self.search_result == True:
-                CMD ='/usr/bin/picospeaker I find {obj}'.format(obj=self.obj)
-                subprocess.call(CMD.strip().split(" "))
+                text ='I find {obj}'.format(obj=self.obj)
+                self.tts_pub.publish(text)
                 rospy.sleep(3)#sentenceの長さによって変更
                 self.search_result = False
                 self.obj = 'none'
@@ -107,8 +105,8 @@ class GPSRNode:
                 self.action_res_pub.publish(True)
             
     def speak(self):
-        CMD ='/usr/bin/picospeaker {ans}'.format(ans=self.answer)
-        subprocess.call(CMD.strip().split(" "))
+        text ='{ans}'.format(ans=self.answer)
+        self.tts_pub.publish(text)
         rospy.sleep(3)#sentenceの長さによって変更
         self.answer = 'none'
         self.action = 'none'
@@ -120,55 +118,40 @@ class GPSRNode:
             self.sub_state = 1
         elif self.sub_state == 1:
             print 'put'
-            if self.place_result == True:
-                self.place_result = False
+            if self.arm_change_result == True:
+                self.arm_change_result = False
                 self.action = 'none'
                 self.sub_state = 0
                 self.action_res_pub.publish(True)
 
-    """def Give(self):#音声仕様
+    def Give(self):
         if self.sub_state == 0:
-            self.changing_pose_req_pub.publish('pass')
-            #rospy.sleep(2)
+            self.changing_pose_req_pub.publish('give')
+            rospy.sleep(3)
             self.sub_state = 1
         elif self.sub_state == 1:
-            CMD ='/usr/bin/picospeaker %s' % 'Here you are'
-            subprocess.call(CMD.strip().split(" "))
-            self.gpsrAPI_pub.publish(True)
-            rospy.sleep(2)#sentenceの長さによって変更
+            self.tts_pub.publish('Pull it up')
+            rospy.sleep(2)#時間の調整あり
             self.sub_state = 2
         elif self.sub_state == 2:
-            if self.sentence == 'thank you':
-                self.gpsrAPI_pub.publish(False)
+            print 'give'
+            if self.arm_change_result == True:
+                self.arm_change_result = False
                 self.action = 'none'
                 self.sub_state = 0
-                self.action_res_pub.publish(True)"""
-
-    """def Give(self):#センサ値による仕様
-        if self.sub_state == 0:
-            self.changing_pose_req_pub.publish('pass')
-            self.sub_state = 1
-        elif self.sub_state == 1:
-            print 'pass'
-            if self.place_result == True:
-                self.place_result = False
-                self.action = 'none'
-                self.sub_state = 0
-                self.action_res_pub.publish(True)"""
+                self.action_res_pub.publish(True)
     
     def start(self):
         try:
             while not rospy.is_shutdown() and self.front_laser_dist == 999.9:
                 rospy.sleep(1.0)
             initial_distance = self.front_laser_dist
-            CMD = '/usr/bin/picospeaker %s' % 'Please open the door'
-            subprocess.call(CMD.strip().split(" "))
+            self.tts_pub.publish('Please open the door')
             while not rospy.is_shutdown() and self.front_laser_dist <= initial_distance + 0.88:#試走場のドアの幅を参考
                 rospy.loginfo(" Waiting for door open")
                 rospy.sleep(2.0)
             rospy.sleep(2.0)
-            CMD = '/usr/bin/picospeaker %s' % 'Thank you'
-            subprocess.call(CMD.strip().split(" "))
+            self.tts_pub.publish('Thank you')
             while not rospy.is_shutdown() and not self.front_laser_dist < 2.0:
                 twist_cmd = Twist()
                 twist_cmd.linear.x = 0.25
@@ -198,8 +181,7 @@ class GPSRNode:
         elif self.sub_state == 1:
             print 'navi entrance'
             if self.navigation_result == 'succsess':
-                CMD = '/usr/bin/picospeaker %s' % 'Finished gpsr'
-                subprocess.call(CMD.strip().split(" "))
+                self.tts_pub.publish('Finished gpsr')
                 print ''
                 print 'finish GPSR'
                 exit()
@@ -214,11 +196,8 @@ class GPSRNode:
     def manipulateResult(self,result):
         self.manipulation_result = result.data
 
-    def changePoseResult(self,result):#現在[19/07/30]placeのみ
-        self.place_result = result.data
-
-    def sentence(self,sentence):#APIから直接sentenceを受け取る#未実装
-        self.sentence = sentence.data
+    def changePoseResult(self,result):
+        self.arm_change_result = result.data
         
     def getLaserCB(self,laser_scan):
         self.laser_dist = laser_scan.ranges
@@ -235,8 +214,7 @@ class GPSRNode:
                     self.finishState()
                 if self.action == 'none':
                     if self.voice_state == 0:
-                        CMD = '/usr/bin/picospeaker %s' % 'command waiting'
-                        subprocess.call(CMD.strip().split(" "))
+                        self.tts_pub.publish('command waiting')
                         self.voice_state = 1
                     elif self.voice_state == 1:
                         print "command waiting.."

@@ -24,9 +24,7 @@ class Navigation:
         self.result_pub = rospy.Publisher('/navigation/result',String,queue_size= 1)
         
         rospy.wait_for_service('move_base/clear_costmaps')
-        self.clear_costmaps = rospy.ServiceProxy('move_base/clear_costmaps', Empty)
-   
-        
+        self.clear_costmaps = rospy.ServiceProxy('move_base/clear_costmaps', Empty)        
         
     def NavigateToDestination(self,destination):
         location_num = -1
