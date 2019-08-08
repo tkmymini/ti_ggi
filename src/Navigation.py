@@ -17,7 +17,7 @@ class Navigation:
     def __init__(self):
         self.location_list = [["living",-0.35,-0.532,-3.088],
                               ["entrance",2.52,-6,1.55],
-                              ["operater",2.4,-3,0.015],
+                              ["operator",2.4,-3,0.015],
                               ["shelf",2.062,-0.217,0.015]]
         self.request_sub = rospy.Subscriber('/navigation/destination',String,self.NavigateToDestination)
    

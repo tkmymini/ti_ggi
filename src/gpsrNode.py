@@ -130,12 +130,13 @@ class GPSRNode:
             rospy.sleep(3)
             self.sub_state = 1
         elif self.sub_state == 1:
-            self.tts_pub.publish('Pull it up')
+            self.tts_pub.publish('Please pull it up')
             rospy.sleep(2)#時間の調整あり
             self.sub_state = 2
         elif self.sub_state == 2:
             print 'give'
             if self.arm_change_result == True:
+                rospy.sleep(2)
                 self.arm_change_result = False
                 self.action = 'none'
                 self.sub_state = 0
@@ -171,6 +172,7 @@ class GPSRNode:
         self.gpsrAPI_pub.publish(True)
         self.action_res_pub.publish(True)#test用
         self.action ='none' 
+        self.voice_state = 0
 
     def finishState(self):
         if self.sub_state == 0:
@@ -210,7 +212,7 @@ class GPSRNode:
             try:
                 print ''
                 print '--{action}-- [task_count:{count}]'.format(action=self.action,count=self.task_count)
-                if self.task_count == 1:
+                if self.task_count == 2:
                     self.finishState()
                 if self.action == 'none':
                     if self.voice_state == 0:
@@ -219,7 +221,6 @@ class GPSRNode:
                     elif self.voice_state == 1:
                         print "command waiting.."
                 elif self.action != 'none':
-                    self.voice_state = 0
                     self.gpsrAPI_pub.publish(False)
                     if self.action == "end":
                         self.end()
