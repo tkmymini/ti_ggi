@@ -170,7 +170,7 @@ class GPSRNode:
     def end(self):
         self.task_count+=1
         self.gpsrAPI_pub.publish(True)
-        self.action_res_pub.publish(True)#test用
+        #self.action_res_pub.publish(True)#test用
         self.action ='none' 
         self.voice_state = 0
 
@@ -246,6 +246,6 @@ if __name__ == '__main__':
     rospy.sleep(1)
     gpsr.start()
     gpsr.gpsrAPI_pub.publish(True)
-    gpsr.action_res_pub.publish(True)#test用
+    #gpsr.action_res_pub.publish(True)#test用
     gpsr.loopMain()
     rospy.spin()
